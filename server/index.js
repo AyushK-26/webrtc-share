@@ -40,7 +40,7 @@ io.on("connection", (socket) => {
   // Replay Offer, Answer, ICE Candidates
   const relayToRoom = (event) => {
     socket.on(event, (payload) => {
-      const roomId = payload?.roomId ?? socket.data.roomId;
+      const roomId = socket.data.roomId;
       if (!roomId) return;
 
       socket.to(roomId).emit(event, {
