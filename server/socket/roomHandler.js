@@ -1,6 +1,6 @@
 export const registerRoomHandler = (io, socket) => {
   socket.on("join-room", (roomId, callback) => {
-    if (!room - id) {
+    if (!roomId) {
       callback?.({ error: "room-id-required" });
       return;
     }
