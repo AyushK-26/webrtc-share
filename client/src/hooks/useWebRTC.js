@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { socket } from "../socket";
 import { ICE_SERVERS } from "../constants";
 
@@ -34,13 +34,77 @@ export const useWebRTC = (onDataChannel) => {
     return pc;
   };
 
+  // register signaling listeners once on mount, clean up on unmount
+  useEffect(() => {
+    // host: fires when guest arrives
+    const handlePeerJoined = async () => {
+      console.log("Peer joined, creating offer...");
+      const pc = pcRef.current;
+
+      if (!pc || pc.signalingState !== "stable") return;
+
+      // create data channel and pass it up via callback
+      const dc = pc.createDataChannel("chat");
+      onDataChannel(dc);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", { offer });
+    };
+
+    // guest: receives offer, creates answer
+    const handleOffer = async ({ offer }) => {
+      console.log("Received offer");
+
+      const pc = pcRef.current;
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      await drainIceCandidateQueue(pc);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { answer });
+    };
+
+    // host: receives answer
+    const handleAnswer = async ({ answer }) => {
+      console.log("Received offer");
+
+      const pc = pcRef.current;
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      await drainIceCandidateQueue(pc);
+    };
+
+    // both sides: receive ICE candidates
+    const handleIceCandidate = async ({ candidate }) => {
+      const pc = pcRef.current;
+
+      if (!pc) return;
+      if (!pc.remoteDescription) {
+        iceCandidateQueue.current.push(candidate);
+        return;
+      }
+      try {
+        pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.error("Error adding ICE candidate: ", e);
+      }
+    };
+
+    socket.on("peer-joined", handlePeerJoined);
+    socket.on("offer", handleOffer);
+    socket.on("answer", handleAnswer);
+    socket.on("ice-candidate", handleIceCandidate);
+
+    return () => {
+      socket.off("peer-joined", handlePeerJoined);
+      socket.off("offer", handleOffer);
+      socket.off("answer", handleAnswer);
+      socket.off("ice-candidate", handleIceCandidate);
+    };
+  });
+
   const joinRoom = async (roomId) => {
     if (!roomId) return;
-
-    socket.off("peer-joined");
-    socket.off("offer");
-    socket.off("answer");
-    socket.off("ice-candidate");
 
     socket.emit("join-room", roomId, ({ role, error }) => {
       if (error) {
@@ -50,6 +114,7 @@ export const useWebRTC = (onDataChannel) => {
 
       console.log("Joined as: ", role);
 
+      // only create peer if join succeeded
       const pc = createPeerConnection();
       pcRef.current = pc;
 
@@ -57,56 +122,6 @@ export const useWebRTC = (onDataChannel) => {
       if (role === "guest") setStatus("Waiting for offer...");
     });
   };
-
-  // host: fires when guest arrives
-  socket.on("peer-joined", async () => {
-    console.log("Peer joined, creating offer...");
-    const pc = pcRef.current;
-
-    // create data channel and pass it up via callback
-    const dc = pc.createDataChannel("chat");
-    onDataChannel(dc);
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit("offer", { offer });
-  });
-
-  // guest: receives offer, creates answer
-  socket.on("offer", async ({ offer }) => {
-    console.log("Received offer");
-
-    const pc = pcRef.current;
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    await drainIceCandidateQueue(pc);
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit("answer", { answer });
-  });
-
-  // host: receives answer
-  socket.on("answer", async ({ answer }) => {
-    console.log("Received offer");
-
-    const pc = pcRef.current;
-    await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    await drainIceCandidateQueue(pc);
-  });
-
-  // both sides: receive ICE candidates
-  socket.on("ice-candidate", async ({ candidate }) => {
-    const pc = pcRef.current;
-    if (!pc.remoteDescription) {
-      iceCandidateQueue.current.push(candidate);
-      return;
-    }
-    try {
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (e) {
-      console.error("Error adding ICE candidate: ", e);
-    }
-  });
 
   return { status, joinRoom };
 };

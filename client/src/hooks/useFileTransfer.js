@@ -79,7 +79,7 @@ export const useFileTransfer = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         dc.send(e.target.result);
-        console.log(`Sent chunk ${chunkIndex + 1}/${totalIndex}`);
+        console.log(`Sent chunk ${chunkIndex + 1}/${totalChunks}`);
         chunkIndex++;
         sendNextChunk();
       };
