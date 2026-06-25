@@ -101,7 +101,7 @@ export const useWebRTC = (onDataChannel) => {
       socket.off("answer", handleAnswer);
       socket.off("ice-candidate", handleIceCandidate);
     };
-  });
+  }, []);
 
   const joinRoom = async (roomId) => {
     if (!roomId) return;
