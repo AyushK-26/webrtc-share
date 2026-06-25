@@ -3,15 +3,20 @@ import { useState, useRef, useEffect } from "react";
 
 const SIGNALING_URL = "http://localhost:3000";
 const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const CHUNK_SIZE = 16 * 1024;
+const BUFFER_THRESHOLD = 256 * 1024;
 
 const socket = io(SIGNALING_URL);
 
 const App = () => {
   const [roomId, setRoomId] = useState("");
   const [status, setStatus] = useState("idle");
+
   const roleRef = useRef(null);
   const pcRef = useRef(null);
   const iceCandidateQueue = useRef([]);
+  const dcRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     socket.on("connect", () => console.log("socket connected: ", socket.id));
@@ -32,11 +37,24 @@ const App = () => {
       setStatus(pc.connectionState);
     };
 
-    // moved here from inside the offer handler
     pc.ondatachannel = (e) => {
       e.channel.onopen = () => {
+        dcRef.current = e.channel;
         console.log("DataChannel open - connected!");
         setStatus("connected");
+      };
+
+      e.channel.onmessage = (event) => {
+        if (typeof event.data === "string") {
+          // metadata
+          const meta = JSON.parse(event.data);
+          console.log(
+            `Receiving file: ${meta.name} File Type: ${meta.fileType} ${meta.totalChunks} chunks`,
+          );
+        } else {
+          // chunk (ArrayBuffer)
+          console.log(`Received chunk: ${event.data.byteLength} bytes`);
+        }
       };
     };
 
@@ -79,6 +97,7 @@ const App = () => {
 
       const dc = pc.createDataChannel("chat");
       dc.onopen = () => {
+        dcRef.current = dc;
         console.log("DataChannel open - connected!");
         setStatus("connected");
       };
@@ -110,6 +129,12 @@ const App = () => {
       console.log("received answer");
       const pc = pcRef.current;
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+      // drain queued ICE candidates now that remote description is set
+      for (const candidate of iceCandidateQueue.current) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      iceCandidateQueue.current = [];
     });
 
     // both sides: receive ICE candidates
@@ -128,6 +153,68 @@ const App = () => {
     });
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    fileRef.current = file;
+
+    console.log(`File name: ${file.name} ${file.size} bytes ${file.type}`);
+  };
+
+  const sendFile = () => {
+    const file = fileRef.current;
+    const dc = dcRef.current;
+
+    if (!file || !dc) return;
+
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    console.log(`Sending file: ${file.name} Total Chunks: ${totalChunks}`);
+
+    let chunkIndex = 0;
+
+    const sendNextChunk = () => {
+      if (chunkIndex >= totalChunks) {
+        console.log("All chunks sent");
+        return;
+      }
+
+      if (dc.bufferedAmount > BUFFER_THRESHOLD) {
+        dc.onbufferedamountlow = () => {
+          dc.onbufferedamountlow = null;
+          sendNextChunk();
+        };
+        dc.bufferedAmountLowThreshold = BUFFER_THRESHOLD / 2;
+        return;
+      }
+
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        dc.send(e.target.result);
+        console.log(`Sent chunk ${chunkIndex + 1}/${totalChunks}`);
+        chunkIndex++;
+        sendNextChunk();
+      };
+      reader.readAsArrayBuffer(chunk);
+    };
+
+    dc.send(
+      JSON.stringify({
+        type: "file-meta",
+        name: file.name,
+        size: file.size,
+        fileType: file.type,
+        totalChunks,
+      }),
+    );
+
+    sendNextChunk();
+  };
+
   return (
     <>
       <h2>WebRTC Share</h2>
@@ -140,6 +227,11 @@ const App = () => {
       />
       <button onClick={joinRoom}>Join Room</button>
       <p>Status: {status}</p>
+
+      <input type="file" onChange={handleFileSelect} />
+      <button onClick={sendFile} disabled={status !== "connected"}>
+        Send File
+      </button>
     </>
   );
 };
