@@ -67,7 +67,7 @@ export const useWebRTC = (onDataChannel) => {
 
     // host: receives answer
     const handleAnswer = async ({ answer }) => {
-      console.log("Received offer");
+      console.log("Received answer");
 
       const pc = pcRef.current;
       await pc.setRemoteDescription(new RTCSessionDescription(answer));

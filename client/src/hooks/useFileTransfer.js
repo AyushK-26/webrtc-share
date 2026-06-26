@@ -4,6 +4,7 @@ import { CHUNK_SIZE, BUFFER_THRESHOLD } from "../constants";
 export const useFileTransfer = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [downloadName, setDownloadName] = useState("");
+  const [progress, setProgress] = useState(0);
 
   const dcRef = useRef(null);
   const fileRef = useRef(null);
@@ -35,6 +36,7 @@ export const useFileTransfer = () => {
   };
 
   const sendFile = () => {
+    setProgress(0);
     const file = fileRef.current;
     const dc = dcRef.current;
 
@@ -81,6 +83,7 @@ export const useFileTransfer = () => {
         dc.send(e.target.result);
         console.log(`Sent chunk ${chunkIndex + 1}/${totalChunks}`);
         chunkIndex++;
+        setProgress(Math.round((chunkIndex / totalChunks) * 100));
         sendNextChunk();
       };
       reader.readAsArrayBuffer(chunk);
@@ -103,9 +106,17 @@ export const useFileTransfer = () => {
         console.log(`Receiving file: ${meta.name} ${meta.totalChunks} chunks`);
         receivedChunkRef.current = [];
         filemetaRef.current = meta;
+        setProgress(0);
       } else {
         // chunk: collect it
         receivedChunkRef.current.push(event.data);
+        setProgress(
+          Math.round(
+            (receivedChunkRef.current.length /
+              filemetaRef.current.totalChunks) *
+              100,
+          ),
+        );
         console.log(
           `Received chunk: ${receivedChunkRef.current.length}/${filemetaRef.current.totalChunks}`,
         );
@@ -137,5 +148,6 @@ export const useFileTransfer = () => {
     sendFile,
     downloadUrl,
     downloadName,
+    progress,
   };
 };

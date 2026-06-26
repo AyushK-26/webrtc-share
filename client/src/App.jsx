@@ -12,6 +12,7 @@ const App = () => {
     sendFile,
     downloadUrl,
     downloadName,
+    progress,
   } = useFileTransfer();
 
   const { status, joinRoom } = useWebRTC(setupDataChannel);
@@ -39,6 +40,13 @@ const App = () => {
       <button onClick={sendFile} disabled={status !== "connected"}>
         Send File
       </button>
+
+      {progress > 0 && progress < 100 && (
+        <div>
+          <progress value={progress} max={100} />
+          <span>{progress}%</span>
+        </div>
+      )}
 
       {downloadUrl && (
         <a href={downloadUrl} download={downloadName}>
