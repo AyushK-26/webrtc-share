@@ -15,7 +15,9 @@ export const useWebRTC = (onDataChannel) => {
   };
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+    });
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
