@@ -1,27 +1,49 @@
 import { socket } from "./socket";
 import { useWebRTC } from "./hooks/useWebRTC";
 import { useFileTransfer } from "./hooks/useFileTransfer";
+import { useChat } from "./hooks/useChat";
 import { useState, useEffect } from "react";
 
 const App = () => {
   const [roomId, setRoomId] = useState("");
+  const [chatInput, setChatInput] = useState("");
 
   const {
-    setupDataChannel,
+    setupDataChannel: setupDataChannelBase,
     handleFileSelect,
     sendFile,
+    pauseTransfer,
+    resumeTransfer,
+    resetTransfer,
+    dcRef,
     downloadUrl,
     downloadName,
     progress,
+    pausedBy,
   } = useFileTransfer();
 
-  const { status, joinRoom } = useWebRTC(setupDataChannel);
+  const { messages, sendMessage, onChatMessage, resetMessages } =
+    useChat(dcRef);
+
+  const setupDataChannel = (channel) => {
+    setupDataChannelBase(channel, onChatMessage);
+  };
+
+  const { status, joinRoom } = useWebRTC(setupDataChannel, () => {
+    resetTransfer();
+    resetMessages();
+  });
 
   useEffect(() => {
     socket.on("connect", () => {
       console.log("Socket connected: ", socket.id);
     });
   }, []);
+
+  const handleSend = () => {
+    sendMessage(chatInput);
+    setChatInput("");
+  };
 
   return (
     <>
@@ -45,6 +67,13 @@ const App = () => {
         <div>
           <progress value={progress} max={100} />
           <span>{progress}%</span>
+
+          {pausedBy === null && <button onClick={pauseTransfer}>Pause</button>}
+          {pausedBy === "self" && (
+            <button onClick={resumeTransfer}>Resume</button>
+          )}
+          {pausedBy === "self" && <span>Paused by you</span>}
+          {pausedBy === "peer" && <span>Paused by peer</span>}
         </div>
       )}
 
@@ -53,6 +82,34 @@ const App = () => {
           Download {downloadName}
         </a>
       )}
+
+      {/* Chat */}
+      <div>
+        <div>
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              style={{ textAlign: msg.self ? "right" : "left" }}
+            >
+              <span>{msg.text}</span>
+              <span style={{ fontSize: "0.75rem", color: "gray" }}>
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Type a message..."
+          disabled={status !== "connected"}
+        />
+        <button onClick={handleSend} disabled={status !== "connected"}>
+          Send
+        </button>
+      </div>
     </>
   );
 };

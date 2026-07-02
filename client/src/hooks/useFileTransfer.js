@@ -5,12 +5,15 @@ export const useFileTransfer = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [downloadName, setDownloadName] = useState("");
   const [progress, setProgress] = useState(0);
+  const [pausedBy, setPausedBy] = useState(null);
 
   const dcRef = useRef(null);
   const fileRef = useRef(null);
   const filemetaRef = useRef(null);
   const receivedChunkRef = useRef([]);
   const downloadUrlRef = useRef(null);
+  const isPausedRef = useRef(false);
+  const sendNextChunkRef = useRef(null);
 
   // revoke blob url on unmount to free browser memory
   useEffect(() => {
@@ -64,6 +67,8 @@ export const useFileTransfer = () => {
         return;
       }
 
+      if (isPausedRef.current) return;
+
       // pause if buffer is too full, resume when it drains
       if (dc.bufferedAmount > BUFFER_THRESHOLD) {
         dc.bufferedAmountLowThreshold = BUFFER_THRESHOLD / 2;
@@ -89,10 +94,57 @@ export const useFileTransfer = () => {
       reader.readAsArrayBuffer(chunk);
     };
 
+    sendNextChunkRef.current = sendNextChunk;
     sendNextChunk();
   };
 
-  const setupDataChannel = (channel) => {
+  // pauseTransfer — paused by self
+  const pauseTransfer = () => {
+    if (!dcRef.current) return;
+    isPausedRef.current = true;
+    setPausedBy("self");
+    dcRef.current.send(JSON.stringify({ type: "transfer-paused" }));
+    console.log("Transfer paused");
+  };
+
+  // resumeTransfer - resumed by self (only callable when pausedBy === "self")
+  const resumeTransfer = () => {
+    if (!dcRef.current) return;
+    isPausedRef.current = false;
+    setPausedBy(null);
+    dcRef.current.send(JSON.stringify({ type: "transfer-resumed" }));
+    console.log("Transfer resumed");
+    if (sendNextChunkRef.current) sendNextChunkRef.current();
+  };
+
+  const resetTransfer = () => {
+    isPausedRef.current = false;
+    setPausedBy(null);
+    sendNextChunkRef.current = null;
+    receivedChunkRef.current = [];
+    filemetaRef.current = null;
+    setProgress(0);
+    setDownloadName("");
+    if (downloadUrlRef.current) {
+      URL.revokeObjectURL(downloadUrlRef.current);
+    }
+    updateDownloadUrl(null);
+    console.log("Transfer reset");
+  };
+
+  // internal - no dc.send, just stop the loop
+  const pauseInternal = () => {
+    isPausedRef.current = true;
+    setPausedBy("peer");
+  };
+
+  const resumeInternal = () => {
+    isPausedRef.current = false;
+    setPausedBy(null);
+    if (sendNextChunkRef.current) sendNextChunkRef.current();
+  };
+
+  const setupDataChannel = (channel, onChatMessage) => {
     dcRef.current = channel;
 
     channel.onopen = () => {
@@ -100,12 +152,30 @@ export const useFileTransfer = () => {
     };
 
     channel.onmessage = (event) => {
-      // metadata: store it and reset chunk collection
       if (typeof event.data === "string") {
-        const meta = JSON.parse(event.data);
-        console.log(`Receiving file: ${meta.name} ${meta.totalChunks} chunks`);
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === "transfer-paused") {
+          pauseInternal();
+          console.log("Peer paused the transfer");
+          return;
+        }
+
+        if (msg.type === "transfer-resumed") {
+          resumeInternal();
+          console.log("Peer resumed the transfer");
+          return;
+        }
+
+        if (msg.type === "chat") {
+          onChatMessage?.(msg.message, msg.timestamp);
+          return;
+        }
+
+        // metadata: store it and reset chunk collection
+        console.log(`Receiving file: ${msg.name} ${msg.totalChunks} chunks`);
         receivedChunkRef.current = [];
-        filemetaRef.current = meta;
+        filemetaRef.current = msg;
         setProgress(0);
       } else {
         // chunk: collect it
@@ -146,8 +216,13 @@ export const useFileTransfer = () => {
     setupDataChannel,
     handleFileSelect,
     sendFile,
+    pauseTransfer,
+    resumeTransfer,
+    resetTransfer,
+    dcRef,
     downloadUrl,
     downloadName,
     progress,
+    pausedBy,
   };
 };

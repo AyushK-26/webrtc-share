@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { socket } from "../socket";
 import { ICE_SERVERS } from "../constants";
 
-export const useWebRTC = (onDataChannel) => {
+export const useWebRTC = (onDataChannel, onPeerLeft) => {
   const [status, setStatus] = useState("idle");
   const pcRef = useRef(null);
   const iceCandidateQueue = useRef([]);
@@ -92,16 +92,24 @@ export const useWebRTC = (onDataChannel) => {
       }
     };
 
+    const handlePeerLeft = () => {
+      console.log("Peer left");
+      onPeerLeft();
+      setStatus("idle");
+    };
+
     socket.on("peer-joined", handlePeerJoined);
     socket.on("offer", handleOffer);
     socket.on("answer", handleAnswer);
     socket.on("ice-candidate", handleIceCandidate);
+    socket.on("peer-left", handlePeerLeft);
 
     return () => {
       socket.off("peer-joined", handlePeerJoined);
       socket.off("offer", handleOffer);
       socket.off("answer", handleAnswer);
       socket.off("ice-candidate", handleIceCandidate);
+      socket.off("peer-left", handlePeerLeft);
     };
   }, []);
 
