@@ -1,12 +1,15 @@
 import { useState, useCallback } from "react";
 
+const generateId = () =>
+  Math.random().toString(36).substring(2) + Date.now().toString(36);
+
 export const useChat = (dcRef) => {
   const [messages, setMessages] = useState([]);
 
   const onChatMessage = useCallback((text, timestamp) => {
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), text, timestamp, self: false },
+      { id: generateId(), text, timestamp, self: false },
     ]);
   }, []);
 
@@ -18,7 +21,7 @@ export const useChat = (dcRef) => {
     dc.send(JSON.stringify({ type: "chat", message: text, timestamp }));
     setMessages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), text, timestamp, self: true },
+      { id: generateId(), text, timestamp, self: true },
     ]);
   };
 

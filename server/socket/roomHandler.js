@@ -25,6 +25,14 @@ export const registerRoomHandler = (io, socket) => {
     callback?.({ role: "guest", peerCount: 2 });
   });
 
+  socket.on("leave-room", () => {
+    const { roomId } = socket.data;
+    if (!roomId) return;
+    socket.to(roomId).emit("peer-left");
+    socket.leave(roomId);
+    socket.data.roomId = null;
+  });
+
   socket.on("disconnect", () => {
     const { roomId } = socket.data;
     if (roomId) {

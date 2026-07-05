@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #6c63ff;
+  --color-brand-hover: #5a52e0;
+
+  --color-surface: #0d0d0f;
+  --color-surface-raised: #111114;
+  --color-surface-overlay: #17171b;
+  --color-surface-subtle: #1a1a1f;
+  --color-surface-muted: #1e1e24;
+
+  --color-border: #2a2a2e;
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+}

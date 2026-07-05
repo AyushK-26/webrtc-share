@@ -6,6 +6,7 @@ export const useFileTransfer = () => {
   const [downloadName, setDownloadName] = useState("");
   const [progress, setProgress] = useState(0);
   const [pausedBy, setPausedBy] = useState(null);
+  const [transferCancelled, setTransferCancelled] = useState(false);
 
   const dcRef = useRef(null);
   const fileRef = useRef(null);
@@ -14,6 +15,7 @@ export const useFileTransfer = () => {
   const downloadUrlRef = useRef(null);
   const isPausedRef = useRef(false);
   const sendNextChunkRef = useRef(null);
+  const isCancelledRef = useRef(false);
 
   // revoke blob url on unmount to free browser memory
   useEffect(() => {
@@ -31,6 +33,7 @@ export const useFileTransfer = () => {
   };
 
   const handleFileSelect = (e) => {
+    setProgress(0);
     const file = e.target.files[0];
     if (!file) return;
 
@@ -39,7 +42,9 @@ export const useFileTransfer = () => {
   };
 
   const sendFile = () => {
-    setProgress(0);
+    isCancelledRef.current = false;
+    isPausedRef.current = false;
+
     const file = fileRef.current;
     const dc = dcRef.current;
 
@@ -62,6 +67,7 @@ export const useFileTransfer = () => {
     let chunkIndex = 0;
 
     const sendNextChunk = () => {
+      if (isCancelledRef.current) return;
       if (chunkIndex >= totalChunks) {
         console.log("All chunks sent");
         return;
@@ -85,6 +91,8 @@ export const useFileTransfer = () => {
 
       const reader = new FileReader();
       reader.onload = (e) => {
+        if (isCancelledRef.current) return;
+        if (dc.readyState !== "open") return;
         dc.send(e.target.result);
         console.log(`Sent chunk ${chunkIndex + 1}/${totalChunks}`);
         chunkIndex++;
@@ -144,6 +152,14 @@ export const useFileTransfer = () => {
     if (sendNextChunkRef.current) sendNextChunkRef.current();
   };
 
+  const cancelTransfer = () => {
+    isCancelledRef.current = true;
+    if (dcRef.current && dcRef.current.readyState === "open") {
+      dcRef.current.send(JSON.stringify({ type: "transfer-cancelled" }));
+    }
+    resetTransfer();
+  };
+
   const setupDataChannel = (channel, onChatMessage) => {
     dcRef.current = channel;
 
@@ -167,6 +183,12 @@ export const useFileTransfer = () => {
           return;
         }
 
+        if (msg.type === "transfer-cancelled") {
+          setTransferCancelled(true);
+          resetTransfer();
+          return;
+        }
+
         if (msg.type === "chat") {
           onChatMessage?.(msg.message, msg.timestamp);
           return;
@@ -174,11 +196,13 @@ export const useFileTransfer = () => {
 
         // metadata: store it and reset chunk collection
         console.log(`Receiving file: ${msg.name} ${msg.totalChunks} chunks`);
+        setTransferCancelled(false);
         receivedChunkRef.current = [];
         filemetaRef.current = msg;
         setProgress(0);
       } else {
         // chunk: collect it
+        if (!filemetaRef.current) return;
         receivedChunkRef.current.push(event.data);
         setProgress(
           Math.round(
@@ -219,10 +243,12 @@ export const useFileTransfer = () => {
     pauseTransfer,
     resumeTransfer,
     resetTransfer,
-    dcRef,
+    cancelTransfer,
     downloadUrl,
     downloadName,
     progress,
     pausedBy,
+    transferCancelled,
+    dcRef,
   };
 };

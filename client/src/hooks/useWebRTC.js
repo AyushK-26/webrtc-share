@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { socket } from "../socket";
-import { ICE_SERVERS } from "../constants";
+import { ICE_SERVERS, SIGNALING_URL } from "../constants";
 
 export const useWebRTC = (onDataChannel, onPeerLeft) => {
   const [status, setStatus] = useState("idle");
@@ -14,15 +14,23 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
     iceCandidateQueue.current = [];
   };
 
-  const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: ICE_SERVERS,
-    });
+  const createPeerConnection = (iceServers) => {
+    const pc = new RTCPeerConnection({ iceServers });
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
+        console.log("ICE candidate:", e.candidate.type, e.candidate.candidate);
         socket.emit("ice-candidate", { candidate: e.candidate });
       }
+    };
+
+    // TODO: Remove
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE connection state:", pc.iceConnectionState);
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log("ICE gathering state:", pc.iceGatheringState);
     };
 
     pc.onconnectionstatechange = () => {
@@ -43,9 +51,11 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
       console.log("Peer joined, creating offer...");
       const pc = pcRef.current;
 
+      // only create offer if connection is in a clean state
+      // guards against duplicate peer-joined events
       if (!pc || pc.signalingState !== "stable") return;
 
-      // create data channel and pass it up via callback
+      // host creates the data channel, guest receives it via ondatachannel
       const dc = pc.createDataChannel("chat");
       onDataChannel(dc);
 
@@ -57,9 +67,14 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
     // guest: receives offer, creates answer
     const handleOffer = async ({ offer }) => {
       console.log("Received offer");
-
       const pc = pcRef.current;
+
+      // only accept offer if we're in stable state (not already mid-negotiation)
+      // drops duplicate offers that arrive
+      if (!pc || pc.signalingState !== "stable") return;
+
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
       await drainIceCandidateQueue(pc);
 
       const answer = await pc.createAnswer();
@@ -70,9 +85,14 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
     // host: receives answer
     const handleAnswer = async ({ answer }) => {
       console.log("Received answer");
-
       const pc = pcRef.current;
+
+      // only accept answer if we're waiting for one (have-local-offer)
+      // drops duplicate answers that arrive
+      if (!pc || pc.signalingState !== "have-local-offer") return;
+
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
       await drainIceCandidateQueue(pc);
     };
 
@@ -113,8 +133,33 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
     };
   }, []);
 
+  const fetchTurnCredentials = async () => {
+    try {
+      const res = await fetch(`${SIGNALING_URL}/api/turn-credentials`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+
+      return await res.json();
+    } catch (err) {
+      console.error(
+        "Failed to fetch TURN credentials, falling back to Google STUN:",
+        err,
+      );
+      // fallback so peer connection can still be created
+      return ICE_SERVERS;
+    }
+  };
+
   const joinRoom = async (roomId) => {
     if (!roomId) return;
+
+    const iceServers = await fetchTurnCredentials();
+
+    if (!Array.isArray(iceServers) || iceServers.length === 0) {
+      console.error("Invalid ICE servers, aborting");
+      return;
+    }
 
     socket.emit("join-room", roomId, ({ role, error }) => {
       if (error) {
@@ -125,7 +170,7 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
       console.log("Joined as: ", role);
 
       // only create peer if join succeeded
-      const pc = createPeerConnection();
+      const pc = createPeerConnection(iceServers);
       pcRef.current = pc;
 
       if (role === "host") setStatus("Waiting for peer...");
@@ -133,5 +178,14 @@ export const useWebRTC = (onDataChannel, onPeerLeft) => {
     });
   };
 
-  return { status, joinRoom };
+  const leaveRoom = () => {
+    socket.emit("leave-room");
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    setStatus("idle");
+  };
+
+  return { status, joinRoom, leaveRoom };
 };

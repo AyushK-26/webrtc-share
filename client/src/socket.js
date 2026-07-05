@@ -7,3 +7,7 @@ export const socket = io(SIGNALING_URL, {
     "ngrok-skip-browser-warning": "true",
   },
 });
+
+socket.on("connect", () => {
+  console.log("Socket connected:", socket.id);
+});
