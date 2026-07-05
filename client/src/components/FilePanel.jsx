@@ -42,7 +42,7 @@ const FilePanel = ({
   const isDone = progress === 100;
 
   return (
-    <div className="flex flex-col w-full md:w-96 border-b md:border-b-0 md:border-r border-border shrink-0">
+    <div className="flex flex-col w-full md:w-3/5 border-b md:border-b-0 md:border-r border-border shrink-0">
       <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
         <svg
           className="w-4 h-4 stroke-brand fill-none"
