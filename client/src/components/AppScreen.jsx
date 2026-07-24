@@ -45,9 +45,9 @@ const AppScreen = ({ roomId, onLeave }) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-surface overflow-hidden">
+    <div className="flex flex-col h-dvh w-full max-w-full bg-surface overflow-hidden">
       <Topbar status={status} roomId={roomId} onLeave={onLeave} />
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
         <FilePanel
           status={status}
           progress={progress}

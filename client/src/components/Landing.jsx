@@ -14,12 +14,14 @@ const Landing = ({ onJoin }) => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-screen bg-surface overflow-hidden">
+    <div className="flex flex-col md:flex-row min-h-dvh md:h-dvh w-full max-w-full bg-surface overflow-x-hidden overflow-y-auto md:overflow-hidden">
       {/* Branding */}
-      <div className="relative flex flex-col justify-center flex-1 px-8 py-12 md:px-16 border-b md:border-b-0 md:border-r border-border overflow-hidden">
-        <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-brand/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 -right-10 w-56 h-56 rounded-full bg-brand/8 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-32 left-16 w-40 h-40 rounded-full bg-violet-500/8 blur-3xl pointer-events-none" />
+      <div className="relative flex flex-col justify-center md:flex-1 md:min-h-0 shrink-0 px-8 py-10 md:px-16 md:py-12 border-b md:border-b-0 md:border-r border-border overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-10 -left-10 w-72 h-72 rounded-full bg-brand/10 blur-3xl" />
+          <div className="absolute bottom-10 -right-10 w-56 h-56 rounded-full bg-brand/8 blur-3xl" />
+          <div className="absolute bottom-32 left-16 w-40 h-40 rounded-full bg-violet-500/8 blur-3xl" />
+        </div>
 
         {/* Logo */}
         <div className="relative z-10 w-10 h-10 bg-brand rounded-xl flex items-center justify-center mb-8">
@@ -42,7 +44,7 @@ const Landing = ({ onJoin }) => {
           Peer-to-peer file sharing and chat. No servers, no storage, no trace.
         </p>
 
-        <ul className="relative z-10 mt-10 flex flex-col gap-4">
+        <ul className="relative z-10 mt-8 md:mt-10 flex flex-col gap-3 md:gap-4">
           {[
             "End-to-end encrypted via WebRTC",
             "Files never touch a server",
@@ -61,7 +63,7 @@ const Landing = ({ onJoin }) => {
       </div>
 
       {/* Join Card */}
-      <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-12">
+      <div className="flex md:flex-1 md:min-h-0 shrink-0 items-center justify-center px-6 py-8 md:px-12 md:py-10">
         <div className="w-full max-w-sm bg-surface-overlay border border-border rounded-2xl p-6 md:p-8">
           <h2 className="text-base font-medium text-white mb-1">Join a room</h2>
           <p className="text-sm text-white/40 mb-6">

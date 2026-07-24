@@ -16,7 +16,7 @@ const ChatPanel = ({ status, messages, onSend }) => {
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden min-h-64 md:min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
         <svg
           className="w-4 h-4 stroke-brand fill-none"

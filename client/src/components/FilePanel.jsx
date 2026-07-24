@@ -49,8 +49,8 @@ const FilePanel = ({
   const isDone = progress === 100;
 
   return (
-    <div className="flex flex-col w-full md:w-3/5 border-b md:border-b-0 md:border-r border-border shrink-0">
-      <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
+    <div className="flex flex-col flex-1 min-h-0 w-full md:w-3/5 border-b md:border-b-0 md:border-r border-border overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border shrink-0">
         <svg
           className="w-4 h-4 stroke-brand fill-none"
           strokeWidth={1.8}
@@ -63,7 +63,7 @@ const FilePanel = ({
         <span className="text-sm font-medium text-white/70">File transfer</span>
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 flex-1 min-h-0 overflow-y-auto">
         {/* Drop zone */}
         {!isTransferring && (
           <div

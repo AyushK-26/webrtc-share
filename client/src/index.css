@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+html {
+  margin: 0;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
 @theme {
   --color-brand: #6c63ff;
   --color-brand-hover: #5a52e0;
