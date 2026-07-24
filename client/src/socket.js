@@ -1,12 +1,13 @@
 import { io } from "socket.io-client";
 import { SIGNALING_URL } from "./constants";
 
-// export const socket = io(SIGNALING_URL);
-export const socket = io(SIGNALING_URL, {
-  extraHeaders: {
-    "ngrok-skip-browser-warning": "true",
-  },
-});
+export const socket = io(SIGNALING_URL);
+
+// export const socket = io(SIGNALING_URL, {
+//   extraHeaders: {
+//     "ngrok-skip-browser-warning": "true",
+//   },
+// });
 
 socket.on("connect", () => {
   console.log("Socket connected:", socket.id);

@@ -1,5 +1,5 @@
-// export const SIGNALING_URL = "http://localhost:3000";
-export const SIGNALING_URL = "https://patriarch-dullness-siesta.ngrok-free.dev";
+export const SIGNALING_URL =
+  import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
 
 // Google STUN and self hosted coturn server.
 // Using metered.ca STUN and TURN servers.
