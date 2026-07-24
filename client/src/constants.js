@@ -17,3 +17,4 @@ export const ICE_SERVERS = [
 
 export const CHUNK_SIZE = 16 * 1024;
 export const BUFFER_THRESHOLD = 256 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;

@@ -21,6 +21,7 @@ const AppScreen = ({ roomId, onLeave }) => {
     progress,
     pausedBy,
     transferCancelled,
+    fileError,
     dcRef,
   } = useFileTransfer();
 
@@ -54,6 +55,7 @@ const AppScreen = ({ roomId, onLeave }) => {
           downloadUrl={downloadUrl}
           downloadName={downloadName}
           transferCancelled={transferCancelled}
+          fileError={fileError}
           onFileSelect={handleFileSelect}
           onSend={sendFile}
           onPause={pauseTransfer}

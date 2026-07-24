@@ -7,6 +7,7 @@ const FilePanel = ({
   downloadUrl,
   downloadName,
   transferCancelled,
+  fileError,
   onFileSelect,
   onSend,
   onPause,
@@ -28,13 +29,19 @@ const FilePanel = ({
   const handleChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    const accepted = onFileSelect(e);
+    if (!accepted) {
+      setIsSender(false);
+      setSelectedFile(null);
+      return;
+    }
+
     setIsSender(true);
     setSelectedFile({
       name: file.name,
       size: (file.size / 1024 / 1024).toFixed(1) + " MB",
     });
-
-    onFileSelect(e);
   };
 
   const isConnected = status === "connected";
@@ -76,13 +83,28 @@ const FilePanel = ({
             <span className="text-sm text-white/30">
               Drop a file or click to browse
             </span>
-            <span className="text-xs text-white/20">Any file type</span>
+            <span className="text-xs text-white/20">Max 10 MB</span>
             <input
               ref={fileInputRef}
               type="file"
               className="hidden"
               onChange={handleChange}
             />
+          </div>
+        )}
+
+        {fileError && !isTransferring && (
+          <div className="flex items-center gap-2 bg-red-950/50 border border-red-900/50 rounded-xl px-3 py-2.5">
+            <svg
+              className="w-3.5 h-3.5 stroke-red-400 fill-none shrink-0"
+              strokeWidth={2}
+              strokeLinecap="round"
+              viewBox="0 0 24 24"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span className="text-xs text-red-400">{fileError}</span>
           </div>
         )}
 

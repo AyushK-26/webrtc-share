@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { CHUNK_SIZE, BUFFER_THRESHOLD } from "../constants";
+import { CHUNK_SIZE, BUFFER_THRESHOLD, MAX_FILE_SIZE } from "../constants";
 
 export const useFileTransfer = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
@@ -7,6 +7,7 @@ export const useFileTransfer = () => {
   const [progress, setProgress] = useState(0);
   const [pausedBy, setPausedBy] = useState(null);
   const [transferCancelled, setTransferCancelled] = useState(false);
+  const [fileError, setFileError] = useState(null);
 
   const dcRef = useRef(null);
   const fileRef = useRef(null);
@@ -34,11 +35,20 @@ export const useFileTransfer = () => {
 
   const handleFileSelect = (e) => {
     setProgress(0);
+    setFileError(null);
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) return false;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError("File exceeds the 10 MB limit");
+      fileRef.current = null;
+      e.target.value = "";
+      return false;
+    }
 
     fileRef.current = file;
     console.log(`File selected: ${file.name} ${file.size} bytes ${file.type}`);
+    return true;
   };
 
   const sendFile = () => {
@@ -49,6 +59,11 @@ export const useFileTransfer = () => {
     const dc = dcRef.current;
 
     if (!file || !dc) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError("File exceeds the 10 MB limit");
+      return;
+    }
 
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     console.log(`Sending file: ${file.name} Total chunks: ${totalChunks}`);
@@ -189,8 +204,27 @@ export const useFileTransfer = () => {
           return;
         }
 
+        if (msg.type === "file-rejected") {
+          isCancelledRef.current = true;
+          setFileError(msg.reason ?? "File was rejected by the receiver");
+          resetTransfer();
+          return;
+        }
+
         if (msg.type === "chat") {
           onChatMessage?.(msg.message, msg.timestamp);
+          return;
+        }
+
+        if (msg.size > MAX_FILE_SIZE) {
+          channel.send(
+            JSON.stringify({
+              type: "file-rejected",
+              reason: "File exceeds the 10 MB limit",
+            }),
+          );
+          setFileError("Incoming file exceeds the 10 MB limit");
+          console.log("Rejected file: exceeds size limit");
           return;
         }
 
@@ -249,6 +283,7 @@ export const useFileTransfer = () => {
     progress,
     pausedBy,
     transferCancelled,
+    fileError,
     dcRef,
   };
 };

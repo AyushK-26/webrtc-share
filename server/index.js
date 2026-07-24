@@ -9,7 +9,11 @@ const app = express();
 app.use(cors(CORS_CONFIG));
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: CORS_CONFIG });
+const io = new Server(server, {
+  cors: CORS_CONFIG,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
 
 initSocket(io);
 
