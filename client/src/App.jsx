@@ -5,7 +5,7 @@ import AppScreen from "./components/AppScreen";
 const App = () => {
   const [roomId, setRoomId] = useState("");
 
-  // Strict Mode remounts once in dev; clear any horizontal scroll
+  // Strict Mode remounts once in dev, clear any horizontal scroll
   // a brief layout overflow may have left behind.
   useLayoutEffect(() => {
     document.documentElement.scrollLeft = 0;
