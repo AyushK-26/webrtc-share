@@ -4,7 +4,8 @@ A peer-to-peer file sharing and chat application built with WebRTC. Files and me
 
 ![Landing Page](./images/landing.png)
 ![Sending Side](./images/sender.png)
-![Receiving Side](./images/receiver.png)(./images/received.png)
+![Receiving Side](./images/receiver.png)
+![Receiving Side](./images/received.png)
 
 ## Features
 
